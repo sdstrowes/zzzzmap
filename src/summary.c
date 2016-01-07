@@ -211,9 +211,10 @@ void json_metadata(FILE *file)
 		json_object_object_add(obj, "gateway_mac", json_object_new_string(mac_buf));
 	}
 	if (zconf.gw_ip) {
-		struct in_addr addr;
-		addr.s_addr = zconf.gw_ip;
-		json_object_object_add(obj, "gateway_ip", json_object_new_string(inet_ntoa(addr)));
+		struct in6_addr addr;
+		memcpy(&addr.s6_addr, zconf.gw_ip, sizeof(struct in6_addr));
+		char addr_str_buf[INET6_ADDRSTRLEN];
+		json_object_object_add(obj, "gateway_ip", json_object_new_string(inet_ntop(AF_INET6, &addr, addr_str_buf, INET6_ADDRSTRLEN)));
 	}
 	{
 		char mac_buf[(ETHER_ADDR_LEN * 2) + (ETHER_ADDR_LEN - 1) + 1];
@@ -274,10 +275,11 @@ void json_metadata(FILE *file)
 	if (b) {
 		json_object *blacklisted_cidrs = json_object_new_array();
 		do {
-			char cidr[50];
-			struct in_addr addr;
-			addr.s_addr = b->ip_address;
-			sprintf(cidr, "%s/%i", inet_ntoa(addr), b->prefix_len);
+			char cidr[INET6_ADDRSTRLEN+4];
+			struct in6_addr addr;
+			char addr_str_buf[INET6_ADDRSTRLEN];
+			memcpy(&addr.s6_addr, &b->ip_address, sizeof(struct in6_addr));
+			sprintf(cidr, "%s/%i", inet_ntop(AF_INET6, &addr, addr_str_buf, INET6_ADDRSTRLEN), b->prefix_len);
 			json_object_array_add(blacklisted_cidrs,
 					json_object_new_string(cidr));
 		} while (b && (b = b->next));
@@ -288,10 +290,11 @@ void json_metadata(FILE *file)
 	if (b) {
 		json_object *whitelisted_cidrs = json_object_new_array();
 		do {
-			char cidr[50];
-			struct in_addr addr;
-			addr.s_addr = b->ip_address;
-			sprintf(cidr, "%s/%i", inet_ntoa(addr), b->prefix_len);
+			char cidr[INET6_ADDRSTRLEN+4];
+			struct in6_addr addr;
+			char addr_str_buf[INET6_ADDRSTRLEN];
+			memcpy(&addr.s6_addr, &b->ip_address, sizeof(struct in6_addr));
+			sprintf(cidr, "%s/%i", inet_ntop(AF_INET6, &addr, addr_str_buf, INET6_ADDRSTRLEN), b->prefix_len);
 			json_object_array_add(whitelisted_cidrs,
 					json_object_new_string(cidr));
 		} while (b && (b = b->next));

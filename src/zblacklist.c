@@ -190,8 +190,8 @@ int main(int argc, char **argv)
 		n[0] = 0;
 		log_debug("zblacklist", "input value %s", line);
 		// parse into int
-		struct in_addr addr;
-		if (!inet_aton(line, &addr)) {
+		struct in6_addr addr;
+		if (!inet_pton(AF_INET6, line, &addr)) {
 			log_warn("zblacklist", "invalid input address: %s", line);
 		}
 		if (conf.check_duplicates) {

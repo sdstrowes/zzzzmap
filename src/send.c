@@ -52,8 +52,8 @@ static inline int send_run_init(sock_t sock);
 static pthread_mutex_t send_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Source IP address for outgoing packets
-static in_addr_t srcip_first;
-static in_addr_t srcip_last;
+static in6_addr_t srcip_first;
+static in6_addr_t srcip_last;
 static uint32_t srcip_offset;
 static uint32_t num_src_addrs;
 
@@ -63,21 +63,31 @@ static uint16_t num_src_ports;
 // global sender initialize (not thread specific)
 iterator_t* send_init(void)
 {
+	int rc;
+
 	// generate a new primitive root and starting position
 	iterator_t *it;
 	it = iterator_init(zconf.senders, zconf.shard_num, zconf.total_shards);
 
-	// process the dotted-notation addresses passed to ZMAP and determine
+	// process the string literals passed to ZMAP and determine
 	// the source addresses from which we'll send packets;
-	srcip_first = inet_addr(zconf.source_ip_first);
-	if (srcip_first == INADDR_NONE) {
+	rc = inet_pton(AF_INET6, zconf.source_ip_first, &srcip_first);
+	if (rc == 0) {
 		log_fatal("send", "invalid begin source ip address: `%s'",
 				zconf.source_ip_first);
 	}
-	srcip_last = inet_addr(zconf.source_ip_last);
-	if (srcip_last == INADDR_NONE) {
-		log_fatal("send", "invalid end source ip address: `%s'",
+	else if (rc == -1) {
+		log_fatal("send", "error handling ip address: `%s'",
+				zconf.source_ip_first, strerror(errno));
+	}
+	rc = inet_pton(AF_INET6, zconf.source_ip_last, &srcip_last);
+	if (rc == 0) {
+		log_fatal("send", "invalid begin source ip address: `%s'",
 				zconf.source_ip_last);
+	}
+	else if (rc == -1) {
+		log_fatal("send", "error handling ip address: `%s'",
+				zconf.source_ip_last, strerror(errno));
 	}
 	log_debug("send", "srcip_first: %u", srcip_first);
 	log_debug("send", "srcip_last: %u", srcip_last);
@@ -306,10 +316,10 @@ int send_run(sock_t st, shard_t *s)
 				for (int i = 0; i < attempts; ++i) {
 					int rc = send_packet(st, contents, length, idx);
 					if (rc < 0) {
-						struct in_addr addr;
+						struct in6_addr addr;
 						addr.s_addr = curr;
-						char addr_str_buf[INET_ADDRSTRLEN];
-						const char *addr_str = inet_ntop(AF_INET, &addr, addr_str_buf, INET_ADDRSTRLEN);
+						char addr_str_buf[INET6_ADDRSTRLEN];
+						const char *addr_str = inet_ntop(AF_INET6, &addr, addr_str_buf, INET6_ADDRSTRLEN);
 						if (addr_str != NULL) {
 							log_debug("send", "send_packet failed for %s. %s",
 								addr_str, strerror(errno));

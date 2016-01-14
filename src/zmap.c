@@ -126,14 +126,14 @@ static void start_zmap(void)
 				" interface (%s).", zconf.iface);
 	}
 	if (zconf.source_ip_first == NULL) {
-		struct in_addr default_ip;
-		zconf.source_ip_first = xmalloc(INET_ADDRSTRLEN);
+		struct in6_addr default_ip;
+		zconf.source_ip_first = xmalloc(INET6_ADDRSTRLEN);
 		zconf.source_ip_last = zconf.source_ip_first;
 		if (get_iface_ip(zconf.iface, &default_ip) < 0) {
 			log_fatal("zmap", "could not detect default IP address for %s."
 					" Try specifying a source address (-S).", zconf.iface);
 		}
-		inet_ntop(AF_INET, &default_ip, zconf.source_ip_first, INET_ADDRSTRLEN);
+		inet_ntop(AF_INET6, &default_ip, zconf.source_ip_first, INET6_ADDRSTRLEN);
 		log_debug("zmap", "no source IP address given. will use default address: %s.",
 				zconf.source_ip_first);
 	}

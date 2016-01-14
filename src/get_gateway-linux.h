@@ -247,25 +247,44 @@ int get_default_gw(struct in_addr *gw, char *iface)
 	return EXIT_SUCCESS;
 }
 
-int get_iface_ip(char *iface, struct in_addr *ip)
+int get_iface_ip(char *iface, struct in6_addr *ip)
 {
-	int sock;
-	struct ifreq ifr;
-	memset(&ifr, 0, sizeof(struct ifreq));
-	sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if (sock < 0) {
-		log_fatal("get-iface-ip", "failure opening socket: %s", strerror(errno));
-	}
-	ifr.ifr_addr.sa_family = AF_INET;
-	strncpy(ifr.ifr_name, iface, IFNAMSIZ-1);
+	struct ifaddrmsg req;
+	memset(&req, 0, sizeof(struct ifaddrmsg));
+	req.ifa_family = AF_INET6;
+	req.ifa_index  = if_nametoindex(iface);
 
-	if (ioctl(sock, SIOCGIFADDR, &ifr) < 0) {
-		close(sock);
-		log_fatal("get-iface-ip", "ioctl failure: %s", strerror(errno));
+	int sock = send_nl_req(RTM_GETADDR, 1, &req, sizeof(req));
+
+	// Read responses
+	unsigned nl_len = read_nl_sock(sock, buf, sizeof(buf));
+	if (nl_len <= 0) {
+		return -1;
 	}
-	ip->s_addr =  ((struct sockaddr_in*) &ifr.ifr_addr)->sin_addr.s_addr;
-	close(sock);
-	return EXIT_SUCCESS;
+	// Parse responses
+	nlhdr = (struct nlmsghdr *)buf;
+	while (NLMSG_OK(nlhdr, nl_len)) {
+		struct rtattr *rt_attr;
+		struct ifattrmsg *if_msg;
+		int rt_len;
+
+		if_msg = (struct ifattrmsg *) NLMSG_DATA(nlhdr);
+		if (if_msg->ifa_index == ifindex && if_msg->ifa_scope == RT_SCOPE_UNIVERSE) {
+			rt_attr = (struct rtattr *)RTM_RTA(if_msg);
+			rt_len = RTM_PAYLOAD(nlhdr);
+
+			char tmp[INET6_ADDRSTRLEN];
+			while (RTA_OK(rt_attr, rt_len)) {
+				if (rtmsg->rta_type == IFA_ADDRESS) {
+					inet_ntop(AF_INET6, RTA_DATA(rtmsg), tmp, sizeof(tmp));
+					printf("debug: %s/%u\n", tmp, ifmsg->ifa_prefixlen);
+				}
+				rt_attr = RTA_NEXT(rt_attr, rt_len);
+			}
+		}
+		nlhdr = NLMSG_NEXT(nlhdr, nl_len);
+	}
+	return -1;
 }
 
 int get_iface_hw_addr(char *iface, unsigned char *hw_mac)

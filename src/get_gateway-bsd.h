@@ -62,7 +62,7 @@ int get_hw_addr(struct in_addr *gw_ip, UNUSED char *iface, unsigned char *hw_mac
 	return EXIT_SUCCESS;
 }
 
-int get_iface_ip(char *iface, struct in_addr *ip)
+int get_iface_ip(char *iface, struct in6_addr *ip)
 {
     assert(iface);
     struct ifaddrs *ifaddr, *ifa;
@@ -71,14 +71,16 @@ int get_iface_ip(char *iface, struct in_addr *ip)
                         strerror(errno));
     }
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next) {
-        if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET) {
+        if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_INET6) {
             continue;
         }
         if (!strcmp(iface, ifa->ifa_name)) {
-            struct sockaddr_in *sin = (struct sockaddr_in *)ifa->ifa_addr;
-            ip->s_addr = sin->sin_addr.s_addr;
+            char buffer[INET6_ADDRSTRLEN];
+            memset(buffer, 0, INET6_ADDRSTRLEN);
+            struct sockaddr_in6 *sin = (struct sockaddr_in6 *)ifa->ifa_addr;
+            memcpy(ip, &sin->sin6_addr, sizeof(struct in6_addr));
             log_debug("get-iface-ip", "ip address found for %s: %s",
-                            iface, inet_ntoa(*ip));
+                            iface, inet_ntop(AF_INET6, ip, buffer, INET6_ADDRSTRLEN));
             return EXIT_SUCCESS;
         }
     }
